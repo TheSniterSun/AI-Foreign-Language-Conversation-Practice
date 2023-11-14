@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Foreign Language Conversation Practice</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        /* Custom CSS for styling */
+        body {
+            background-color: #f0f0f0; /* Light gray background */
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            background-color: #fff; /* White background */
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            margin-top: 50px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        /* Center-align labels for dropdowns */
+        .form-group label {
+            text-align: center;
+        }
+        /* Add a border and styling to the title heading */
+        .page-title {
+            background-color: #007bff; /* Vibrant blue background */
+            color: #fff; /* White text color for contrast */
+            border: 2px solid #007bff; /* Vibrant blue border */
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        /* Style the primary button */
+        .btn-primary {
+            background-color: #28a745; /* Vibrant green background */
+            border-color: #28a745; /* Vibrant green border */
+        }
+        /* Style the dropdowns */
+        select.form-control {
+            background-color: #f8f9fa; /* Light gray background for dropdowns */
+        }
+        /* Custom styling for text inputs */
+        input.form-control {
+            background-color: #f8f9fa; /* Light gray background for text inputs */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Stylish title heading -->
+        <h1 class="text-center page-title">AI Foreign Language Conversation Practice</h1>
+
+        <form id="translationForm">
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label for="fromLanguage">Translate From</label>
+                    <select class="form-control" id="fromLanguage">
+                        <option value="en">English</option>
+                        <option value="fr">French</option>
+                        <option value="es">Spanish</option>
+                        <!-- Add more language options here -->
+                    </select>
+                </div>
+                <div class="form-group col-md-6">
+                    <label for="toLanguage">Translate To</label>
+                    <select class="form-control" id="toLanguage">
+                        <option value="es">Spanish</option>
+                        <option value="fr">French</option>
+                        <option value="de">German</option>
+                        <!-- Add more language options here -->
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="inputText">Input</label>
+                <input type="text" class="form-control" id="inputText" placeholder="Enter a sentence">
+            </div>
+            
+            <div class="form-group">
+                <label for="translationText">Translation</label>
+                <input type="text" class="form-control" id="translationText" readonly>
+            </div>
+            
+            <!-- Add a message element for displaying "Translated" -->
+            <p id="translationMessage" style="display: none;">Translated</p>
+            
+            <!-- Add a "Listen" button -->
+            <button type="button" class="btn btn-primary btn-block" id="listenButton">Listen</button>
+            
+            <!-- Add a voice selection dropdown -->
+            <div class="form-group">
+                <label for="voiceSelect">Select Voice</label>
+                <select class="form-control" id="voiceSelect">
+                    <!-- Voice options will be populated dynamically using JavaScript -->
+                </select>
+            </div>
+            
+            <!-- Add generated response field -->
+            <div class="form-group">
+                <label for="generatedResponse">Generated Response</label>
+                <input type="text" class="form-control" id="generatedResponse" readonly>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">Translate</button>
+        </form>
+    </div>
+
+    <!-- Include jQuery -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    
+    <script>
+        // Function to populate the voice selection dropdown
+        function populateVoiceList() {
+            var voiceSelect = document.getElementById('voiceSelect');
+            var voices = speechSynthesis.getVoices();
+            voices.forEach(function(voice, index) {
+                var option = document.createElement('option');
+                option.value = index;
+                option.textContent = voice.name;
+                voiceSelect.appendChild(option);
+            });
+        }
+
+        // Populate voice list when voices are loaded
+        window.speechSynthesis.onvoiceschanged = function() {
+            populateVoiceList();
+        };
+
+        // Function to perform translation when the form is submitted
+        $("#translationForm").submit(function(event) {
+            event.preventDefault(); // Prevent the default form submission
+            
+            // Get user input
+            var inputText = $("#inputText").val();
+            var fromLanguage = $("#fromLanguage").val();
+            var toLanguage = $("#toLanguage").val();
+            var selectedVoiceIndex = $("#voiceSelect").val(); // Get the selected voice index
+            
+            // Check if input is not empty
+            if (inputText && fromLanguage && toLanguage) {
+                // Make an AJAX request to the server for translation
+                $.ajax({
+                    type: "POST",
+                    url: "/process-input", // Updated endpoint for processing input
+                    contentType: "application/json;charset=UTF-8",
+                    data: JSON.stringify({
+                        inputText: inputText,
+                        fromLanguage: fromLanguage,
+                        toLanguage: toLanguage
+                    }),
+                    success: function(response) {
+                        // Update the translation field with the translation
+                        $("#translationText").val(response.translationText);
+                        // Show the translation message
+                        $("#translationMessage").show();
+                        
+                        // Use the selected voice from the dropdown
+                        var selectedVoice = speechSynthesis.getVoices()[selectedVoiceIndex];
+                        var utterance = new SpeechSynthesisUtterance(response.translationText);
+                        utterance.voice = selectedVoice;
+                        speechSynthesis.speak(utterance);
+
+                        // Update the "Generated Response" field with the generated response
+                        $("#generatedResponse").val(response.generatedResponse);
+
+                        // Speak the translated response
+                        var responseUtterance = new SpeechSynthesisUtterance(response.generatedResponse);
+                        responseUtterance.voice = selectedVoice;
+                        speechSynthesis.speak(responseUtterance);
+                    }
+                });
+            }
+        });
+
+        // Function to perform speech recognition when the "Listen" button is clicked
+        $("#listenButton").click(function() {
+            const recognition = new window.webkitSpeechRecognition();
+
+            recognition.onstart = function() {
+                $("#inputText").val('Listening...');
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                $("#inputText").val(transcript);
+
+                // Perform translation and speak the translation
+                var fromLanguage = $("#fromLanguage").val();
+                var toLanguage = $("#toLanguage").val();
+                var selectedVoiceIndex = $("#voiceSelect").val();
+                $.ajax({
+                    type: "POST",
+                    url: "/process-input", // Updated endpoint for processing input
+                    contentType: "application/json;charset=UTF-8",
+                    data: JSON.stringify({
+                        inputText: transcript,
+                        fromLanguage: fromLanguage,
+                        toLanguage: toLanguage
+                    }),
+                    success: function(response) {
+                        // Update the translation field with the translation
+                        $("#translationText").val(response.translationText);
+                        // Show the translation message
+                        $("#translationMessage").show();
+                        
+                        // Use the selected voice from the dropdown
+                        var selectedVoice = speechSynthesis.getVoices()[selectedVoiceIndex];
+                        var utterance = new SpeechSynthesisUtterance(response.translationText);
+                        utterance.voice = selectedVoice;
+                        speechSynthesis.speak(utterance);
+
+                        // Update the "Generated Response" field with the generated response
+                        $("#generatedResponse").val(response.generatedResponse);
+
+                        // Speak the translated response
+                        var responseUtterance = new SpeechSynthesisUtterance(response.generatedResponse);
+                        responseUtterance.voice = selectedVoice;
+                        speechSynthesis.speak(responseUtterance);
+                    }
+                });
+            };
+
+            recognition.start();
+        });
+    </script>
+</body>
+</html>
+
